@@ -14,6 +14,7 @@ use App\SyncAdapters\Kandji\KandjiAdapter;
 use App\SyncAdapters\KaseyaVsa10\KaseyaVsa10Adapter;
 use App\SyncAdapters\MerakiSystemsManager\MerakiSystemsManagerAdapter;
 use App\SyncAdapters\Mosyle\MosyleAdapter;
+use App\SyncAdapters\NetBox\NetBoxAdapter;
 use App\SyncAdapters\NinjaOne\NinjaOneAdapter;
 use App\SyncAdapters\Osctrl\OsctrlAdapter;
 use App\SyncAdapters\Unifi\UnifiAdapter;
@@ -46,6 +47,7 @@ class AdapterRegistry
         'kaseya_vsa10' => KaseyaVsa10Adapter::class,
         'meraki_sm' => MerakiSystemsManagerAdapter::class,
         'mosyle' => MosyleAdapter::class,
+        'netbox' => NetBoxAdapter::class,
         'ninjaone' => NinjaOneAdapter::class,
         'osctrl' => OsctrlAdapter::class,
         'unifi' => UnifiAdapter::class,

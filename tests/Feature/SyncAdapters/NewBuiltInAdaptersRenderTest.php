@@ -55,4 +55,15 @@ class NewBuiltInAdaptersRenderTest extends TestCase
         $this->assertMatchesRegularExpression('/name="workspace_one_client_id"/', $html);
         $this->assertMatchesRegularExpression('/name="workspace_one_client_secret"/', $html);
     }
+
+    public function test_netbox_renders_with_its_schema_label()
+    {
+        $html = $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('settings.adapters.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('NetBox', $html);
+        $this->assertMatchesRegularExpression('/name="netbox_token"/', $html);
+    }
 }
