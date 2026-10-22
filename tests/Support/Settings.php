@@ -193,6 +193,16 @@ class Settings
         ]);
     }
 
+    public function enableOidcLogin(): Settings
+    {
+        return $this->update([
+            'oidc_login' => 1,
+            'oidc_issuer' => 'https://idp.example.com',
+            'oidc_client_id' => 'snipe-it',
+            'oidc_client_secret' => Crypt::encrypt('oidc-secret'),
+        ]);
+    }
+
     public function enableAnonymousLdap(): Settings
     {
         return $this->update([

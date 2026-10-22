@@ -26,6 +26,7 @@ use App\Http\Controllers\MaintenanceTypesController;
 use App\Http\Controllers\ManufacturersController;
 use App\Http\Controllers\ModalController;
 use App\Http\Controllers\NotesController;
+use App\Http\Controllers\OidcAuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Reports\CustomComponentReportController;
@@ -470,6 +471,14 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'authorize:superuser
 
     Route::post('google', [SettingsController::class, 'postGoogleLoginSettings'])
         ->name('settings.google.save');
+
+    Route::get('oidc', [SettingsController::class, 'getOidcLoginSettings'])
+        ->name('settings.oidc.index')
+        ->breadcrumbs(fn (Trail $trail) => $trail->parent('settings.index')
+            ->push(trans('admin/settings/general.oidc_login'), route('settings.oidc.index')));
+
+    Route::post('oidc', [SettingsController::class, 'postOidcLoginSettings'])
+        ->name('settings.oidc.save');
 
     Route::get('purge', [SettingsController::class, 'getPurge'])
         ->name('settings.purge.index')
@@ -1004,6 +1013,10 @@ Route::group(['middleware' => 'web'], function () {
     // Socialite Google login
     Route::get('google', 'App\Http\Controllers\GoogleAuthController@redirectToGoogle')->name('google.redirect');
     Route::get('google/callback', 'App\Http\Controllers\GoogleAuthController@handleGoogleCallback')->name('google.callback');
+
+    // Generic OpenID Connect login
+    Route::get('oidc', [OidcAuthController::class, 'redirectToProvider'])->name('oidc.redirect');
+    Route::get('oidc/callback', [OidcAuthController::class, 'handleProviderCallback'])->name('oidc.callback');
 
     // need to keep GET /logout for SAML SLO
     Route::get(

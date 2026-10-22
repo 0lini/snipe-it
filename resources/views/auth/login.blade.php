@@ -28,6 +28,17 @@
                         <div class="separator">{{ strtoupper(trans('general.or')) }}</div>
                     @endif
 
+                    @if (($snipeSettings->oidc_login == '1') && ($snipeSettings->oidc_issuer != '') && ($snipeSettings->oidc_client_id != '') && ($snipeSettings->oidc_client_secret != ''))
+
+                        <br><br>
+                        <a href="{{ route('oidc.redirect') }}" class="btn btn-block btn-social btn-openid btn-lg">
+                            <i class="fa-brands fa-openid" aria-hidden="true"></i>
+                            {{ $snipeSettings->oidc_button_label ?: trans('auth/general.oidc_login') }}
+                        </a>
+
+                        <div class="separator">{{ strtoupper(trans('general.or')) }}</div>
+                    @endif
+
 
                     <div class="box login-box">
                         <div class="box-header with-border">
