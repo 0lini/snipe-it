@@ -2,14 +2,17 @@
 
 namespace App\Services\Oidc;
 
+use App\Exceptions\OidcLoginException;
 use App\Models\Setting;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Relying-party side of the OIDC authorization code flow used for web UI
@@ -53,6 +56,35 @@ class OidcLoginClient
     }
 
     /**
+     * The provider's discovery document, cached for an hour. The advertised
+     * issuer must match the configured issuer (OIDC Discovery 4.3).
+     *
+     * @return array<string, mixed>
+     *
+     * @throws OidcLoginException
+     */
+    public function discovery(): array
+    {
+        $issuer = rtrim((string) $this->setting->oidc_issuer, '/');
+
+        try {
+            $document = Cache::remember('oidc_login_disco_'.md5($issuer), 3600, function () use ($issuer) {
+                return Http::timeout(10)->acceptJson()->get($issuer.'/.well-known/openid-configuration')->throw()->json();
+            });
+        } catch (Throwable $e) {
+            throw new OidcLoginException('Discovery failed for '.$issuer.': '.$e->getMessage(), previous: $e);
+        }
+
+        if (! is_array($document) || rtrim((string) ($document['issuer'] ?? ''), '/') !== $issuer) {
+            Cache::forget('oidc_login_disco_'.md5($issuer));
+
+            throw new OidcLoginException('Discovery document issuer does not match the configured issuer');
+        }
+
+        return $document;
+    }
+
+    /**
      * Build the provider's authorization URL for a fresh login attempt.
      */
     public function authorizationUrl(string $state, string $nonce, string $codeVerifier): string
@@ -82,6 +114,9 @@ class OidcLoginClient
      * token claims, merged with userinfo claims when the configured username
      * claim is missing from the ID token.
      *
+     * The client authenticates with client_secret_basic (the spec default)
+     * unless the provider only advertises client_secret_post.
+     *
      * @return array<string, mixed>
      *
      * @throws OidcLoginException
@@ -103,8 +138,6 @@ class OidcLoginClient
 
         $request = Http::asForm()->acceptJson()->timeout(10);
 
-        // client_secret_basic is the spec default; fall back to
-        // client_secret_post only for providers that don't advertise basic.
         $authMethods = (array) ($discovery['token_endpoint_auth_methods_supported'] ?? ['client_secret_basic']);
         if (in_array('client_secret_basic', $authMethods, true)) {
             $request->withBasicAuth(rawurlencode($this->setting->oidc_client_id), rawurlencode($this->clientSecret()));
@@ -129,6 +162,9 @@ class OidcLoginClient
     }
 
     /**
+     * Verify the ID token signature against the provider's JWKS and check its
+     * iss, aud, azp, nonce, sub and exp claims.
+     *
      * @param  array<string, mixed>  $discovery
      * @return array<string, mixed>
      *
@@ -139,7 +175,7 @@ class OidcLoginClient
         try {
             JWT::$leeway = 60;
             $claims = json_decode(json_encode(JWT::decode($idToken, $this->signingKeys($discovery))), true);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             throw new OidcLoginException('ID token signature validation failed: '.$e->getMessage(), previous: $e);
         }
 
@@ -168,9 +204,10 @@ class OidcLoginClient
     }
 
     /**
-     * @return array<string, mixed>
+     * Fetch userinfo claims. They are only used when they describe the same
+     * subject as the verified ID token (OIDC Core 5.3.2).
      *
-     * @throws OidcLoginException
+     * @return array<string, mixed>
      */
     protected function userInfo(string $endpoint, string $accessToken, string $subject): array
     {
@@ -178,8 +215,6 @@ class OidcLoginClient
 
         $userInfo = $response->successful() ? $response->json() : null;
 
-        // Userinfo claims may only be used when they describe the same subject
-        // as the verified ID token (OIDC Core 5.3.2).
         if (! is_array($userInfo) || ($userInfo['sub'] ?? null) !== $subject) {
             Log::warning('[OIDC] Ignoring userinfo response for a different or missing subject');
 
@@ -190,37 +225,12 @@ class OidcLoginClient
     }
 
     /**
-     * The provider's discovery document, cached for an hour. The advertised
-     * issuer must match the configured issuer (OIDC Discovery 4.3).
+     * The provider's signing keys, cached for an hour.
      *
-     * @return array<string, mixed>
+     * @param  array<string, mixed>  $discovery
+     * @return array<string, Key>
      *
      * @throws OidcLoginException
-     */
-    public function discovery(): array
-    {
-        $issuer = rtrim((string) $this->setting->oidc_issuer, '/');
-
-        try {
-            $document = Cache::remember('oidc_login_disco_'.md5($issuer), 3600, function () use ($issuer) {
-                return Http::timeout(10)->acceptJson()->get($issuer.'/.well-known/openid-configuration')->throw()->json();
-            });
-        } catch (\Throwable $e) {
-            throw new OidcLoginException('Discovery failed for '.$issuer.': '.$e->getMessage(), previous: $e);
-        }
-
-        if (! is_array($document) || rtrim((string) ($document['issuer'] ?? ''), '/') !== $issuer) {
-            Cache::forget('oidc_login_disco_'.md5($issuer));
-
-            throw new OidcLoginException('Discovery document issuer does not match the configured issuer');
-        }
-
-        return $document;
-    }
-
-    /**
-     * @param  array<string, mixed>  $discovery
-     * @return array<string, \Firebase\JWT\Key>
      */
     protected function signingKeys(array $discovery): array
     {
@@ -235,6 +245,10 @@ class OidcLoginClient
         return JWK::parseKeySet($jwks, 'RS256');
     }
 
+    /**
+     * The configured scopes, falling back to the defaults and always
+     * including openid.
+     */
     protected function scopes(): string
     {
         $scopes = preg_split('/[\s,]+/', (string) $this->setting->oidc_scopes, -1, PREG_SPLIT_NO_EMPTY);
@@ -250,6 +264,9 @@ class OidcLoginClient
         return implode(' ', $scopes);
     }
 
+    /**
+     * @throws OidcLoginException
+     */
     protected function clientSecret(): string
     {
         try {
@@ -259,6 +276,9 @@ class OidcLoginClient
         }
     }
 
+    /**
+     * PKCE S256 code challenge for the given verifier (RFC 7636).
+     */
     public static function codeChallenge(string $codeVerifier): string
     {
         return rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');

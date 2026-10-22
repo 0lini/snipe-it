@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\OidcLoginException;
 use App\Helpers\Helper;
 use App\Models\User;
 use App\Services\Oidc\OidcLoginClient;
-use App\Services\Oidc\OidcLoginException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +21,10 @@ class OidcAuthController extends Controller
 {
     private const SESSION_KEY = 'oidc_login';
 
+    /**
+     * Start a login: remember state, nonce and PKCE verifier in the session
+     * and send the user to the provider.
+     */
     public function redirectToProvider(Request $request): RedirectResponse
     {
         $client = OidcLoginClient::fromSettings();
@@ -50,11 +54,14 @@ class OidcAuthController extends Controller
         return redirect()->away($url);
     }
 
+    /**
+     * Complete the login. The pending login is pulled from the session, so a
+     * replayed or bookmarked callback finds nothing to complete.
+     */
     public function handleProviderCallback(Request $request): RedirectResponse
     {
         $client = OidcLoginClient::fromSettings();
 
-        // Single use: a replayed or bookmarked callback finds no pending login.
         $pending = $request->session()->pull(self::SESSION_KEY);
 
         if (! $client->isEnabled() || ! is_array($pending)) {

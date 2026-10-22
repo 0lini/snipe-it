@@ -897,6 +897,8 @@ class SettingsController extends Controller
 
     /**
      * Show OIDC login settings form
+     *
+     * @since [v8.8.4]
      */
     public function getOidcLoginSettings(): View
     {
@@ -906,7 +908,10 @@ class SettingsController extends Controller
     }
 
     /**
-     * Save OIDC login settings form
+     * Save OIDC login settings form. The client secret is write-only and
+     * stored encrypted: a blank field keeps the stored value.
+     *
+     * @since [v8.8.4]
      */
     public function postOidcLoginSettings(StoreOidcSettings $request): RedirectResponse
     {
@@ -923,7 +928,6 @@ class SettingsController extends Controller
         $setting->oidc_username_claim = $request->input('oidc_username_claim');
         $setting->oidc_button_label = $request->input('oidc_button_label');
 
-        // The secret is write-only: a blank field keeps the stored value.
         if ($request->boolean('clear_oidc_client_secret')) {
             $setting->oidc_client_secret = null;
         } elseif ($request->filled('oidc_client_secret')) {
