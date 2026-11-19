@@ -71,6 +71,12 @@ class JamfAdapter extends PushableSyncAdapter
                 'required' => false,
                 'help' => trans('admin/settings/sync_adapters.jamf_group_filter_help'),
             ],
+            [
+                'key' => 'site_filter',
+                'label' => trans('admin/settings/sync_adapters.jamf_site_filter_label'),
+                'required' => false,
+                'help' => trans('admin/settings/sync_adapters.jamf_site_filter_help'),
+            ],
             $this->appleDbSettingsField(),
         ];
     }
@@ -138,8 +144,12 @@ class JamfAdapter extends PushableSyncAdapter
         $enrichmentHandled = [];
 
         $filter = $this->resolveGroupFilter($client);
+        $siteIds = $this->resolveSiteFilter($client);
 
         foreach ($client->computers() as $computer) {
+            if ($siteIds !== null && ! isset($siteIds[(string) Arr::get($computer, 'general.site.id')])) {
+                continue;
+            }
             if ($filter !== null && ! isset($filter['computerIds'][(int) Arr::get($computer, 'id')])) {
                 continue;
             }
@@ -152,6 +162,9 @@ class JamfAdapter extends PushableSyncAdapter
 
         if ($this->shouldPullMobileDevices()) {
             foreach ($client->mobileDevices() as $device) {
+                if ($siteIds !== null && ! isset($siteIds[(string) Arr::get($device, 'site.id')])) {
+                    continue;
+                }
                 if ($filter !== null && ! isset($filter['mobileIds'][(int) Arr::get($device, 'id')])) {
                     continue;
                 }
@@ -162,6 +175,60 @@ class JamfAdapter extends PushableSyncAdapter
                 yield $record;
             }
         }
+    }
+
+    /**
+     * Resolve the admin-entered site_filter into a set of Jamf Site IDs
+     * (as string keys). Entries can be site names (case-insensitive) or
+     * raw numeric IDs. Names are resolved against the tenant's site list
+     * once per sync. Unresolvable entries log a warning and are skipped.
+     * Returns null when no filter is configured so the pull skips the
+     * site gate and the Sites API call entirely.
+     *
+     * @return array<string, true>|null
+     */
+    private function resolveSiteFilter(JamfClient $client): ?array
+    {
+        $raw = '';
+        try {
+            $raw = (string) $this->credential('site_filter');
+        } catch (\Throwable) {
+            // Credential not set yet. Treat as unconfigured.
+        }
+
+        $entries = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        if ($entries === []) {
+            return null;
+        }
+
+        $nameToId = [];
+        $knownIds = [];
+        foreach ($client->sites() as $site) {
+            $id = (string) ($site['id'] ?? '');
+            if ($id === '') {
+                continue;
+            }
+            $knownIds[$id] = true;
+            $nameToId[strtolower((string) ($site['name'] ?? ''))] = $id;
+        }
+
+        $siteIds = [];
+        foreach ($entries as $entry) {
+            $lower = strtolower($entry);
+            if (isset($nameToId[$lower])) {
+                $siteIds[$nameToId[$lower]] = true;
+            } elseif (isset($knownIds[$entry])) {
+                $siteIds[$entry] = true;
+            } else {
+                Log::channel('sync-adapters')->warning(sprintf(
+                    '%s: site_filter entry "%s" did not match any Jamf Pro site. Skipping.',
+                    $this->name(),
+                    $entry,
+                ));
+            }
+        }
+
+        return $siteIds;
     }
 
     /**

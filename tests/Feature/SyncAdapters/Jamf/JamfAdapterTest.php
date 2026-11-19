@@ -598,7 +598,65 @@ class JamfAdapterTest extends TestCase
         $this->assertSame('law-mac-01', $records[0]->hostname);
     }
 
-    private function configuredJamfAdapter(bool $includeMobile = false, string $groupFilter = ''): JamfAdapter
+    public function test_site_filter_narrows_computers_and_mobile_devices_by_site()
+    {
+        $adapter = $this->configuredJamfAdapter(includeMobile: true, siteFilter: 'Law School');
+
+        Http::fake([
+            '*/api/oauth/token' => $this->jamfTokenResponse(),
+            '*/api/v1/sites' => Http::response([
+                ['id' => '5', 'name' => 'Law School'],
+                ['id' => '6', 'name' => 'Medical School'],
+            ]),
+            '*/api/v1/computers-inventory*' => Http::response([
+                'totalCount' => 2,
+                'results' => [
+                    $this->withSite($this->jamfComputer(id: 42, name: 'law-mac-01'), 'general.site', 5),
+                    $this->withSite($this->jamfComputer(id: 500, name: 'med-mac-01'), 'general.site', 6),
+                ],
+            ]),
+            '*/api/v2/mobile-devices*' => Http::response([
+                'totalCount' => 2,
+                'results' => [
+                    $this->withSite($this->jamfMobileDevice(id: 10, name: 'law-ipad-01'), 'site', 5),
+                    $this->withSite($this->jamfMobileDevice(id: 20, name: 'med-ipad-01'), 'site', 6),
+                ],
+            ]),
+        ]);
+
+        $hostnames = array_map(fn ($r) => $r->hostname, iterator_to_array($adapter->pull()));
+
+        $this->assertEqualsCanonicalizing(['law-mac-01', 'law-ipad-01'], $hostnames);
+    }
+
+    public function test_blank_site_filter_skips_site_lookup()
+    {
+        $adapter = $this->configuredJamfAdapter();
+
+        Http::fake([
+            '*/api/oauth/token' => $this->jamfTokenResponse(),
+            '*/api/v1/computers-inventory*' => Http::response([
+                'totalCount' => 1,
+                'results' => [$this->jamfComputer(id: 42, name: 'any-mac')],
+            ]),
+        ]);
+
+        $this->assertCount(1, iterator_to_array($adapter->pull()));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/api/v1/sites'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withSite(array $payload, string $path, int $siteId): array
+    {
+        \Illuminate\Support\Arr::set($payload, $path, ['id' => (string) $siteId, 'name' => 'Site '.$siteId]);
+
+        return $payload;
+    }
+
+    private function configuredJamfAdapter(bool $includeMobile = false, string $groupFilter = '', string $siteFilter = ''): JamfAdapter
     {
         $instance = SyncAdapterInstance::where('slug', 'jamf')->firstOrFail();
         SyncAdapterConfig::put($instance->id, 'url', 'https://example.jamfcloud.com');
@@ -606,6 +664,7 @@ class JamfAdapterTest extends TestCase
         SyncAdapterConfig::put($instance->id, 'client_secret', Crypt::encrypt('fake-jamf-client-secret'));
         SyncAdapterConfig::put($instance->id, 'include_mobile_devices', $includeMobile ? '1' : '0');
         SyncAdapterConfig::put($instance->id, 'group_filter', $groupFilter);
+        SyncAdapterConfig::put($instance->id, 'site_filter', $siteFilter);
 
         return new JamfAdapter($instance->fresh());
     }

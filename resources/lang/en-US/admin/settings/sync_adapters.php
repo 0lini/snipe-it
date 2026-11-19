@@ -192,6 +192,8 @@ return [
     'jamf_include_mobile_devices_help' => 'When enabled, Snipe-IT also pulls iOS / iPadOS / tvOS devices from Jamf Pro alongside computers. The API Role you created above must additionally grant Read on Mobile Devices for this to work.',
     'jamf_group_filter_label' => 'Group filter',
     'jamf_group_filter_help' => 'Comma-separated Jamf Pro Smart or Static Computer Group names (or IDs) to limit the sync to. Only devices that belong to any of these groups are synced, everything else is skipped. Leave blank to sync every device the API Client can see. If you enable the mobile toggle above, the same names are also resolved against Mobile Device Groups, so a group named "Law School" that exists in both namespaces filters both fleets. The API Role you created above must grant Read on Computer Groups (and Read on Mobile Device Groups if you enable the mobile toggle) for this to work. Example: "Law School, Faculty Loaners".',
+    'jamf_site_filter_label' => 'Site filter',
+    'jamf_site_filter_help' => 'Comma-separated Jamf Pro Site names (or IDs) to limit the sync to. Only computers and mobile devices that belong to one of these sites are synced, everything else is skipped. Leave blank to sync every device the API Client can see. The API Role you created above must grant Read on Sites for this to work. Can be combined with the group filter below. Example: "Law School, Main Campus".',
     'jamf_extra_ram_gb' => 'Jamf RAM (GB)',
     'jamf_extra_storage_gb' => 'Jamf storage (GB)',
     'jamf_extra_mobile_device_type' => 'Jamf mobile device type',
