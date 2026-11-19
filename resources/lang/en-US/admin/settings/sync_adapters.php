@@ -491,6 +491,10 @@ return [
     'label_client_secret' => 'Client Secret',
     'label_api_token' => 'API Token',
     'label_api_key' => 'API Key',
+    'label_username' => 'Username',
+    'label_password' => 'Password',
+    'label_skip_tls_verify' => 'Skip TLS Certificate Verification',
+    'label_skip_tls_verify_help' => 'Tick this only if the appliance uses a self-signed or private-CA certificate that this server does not trust. Prefer installing the CA certificate. With verification off, the credentials and inventory can be intercepted on the network path.',
     'label_bearer_token' => 'Bearer Token',
     'label_basic_auth_username' => 'Basic Auth Username',
     'label_basic_auth_password' => 'Basic Auth Password',
@@ -536,6 +540,7 @@ return [
     'vendor_group_kaseya_organization' => 'Kaseya Organization',
     'vendor_group_google_workspace_org_unit' => 'Google Organizational Unit',
     'vendor_group_levelio_group' => 'Level.io Group',
+    'vendor_group_hpe_oneview_enclosure_group' => 'HPE OneView Enclosure Group',
     'vendor_group_ninjaone_organization' => 'NinjaOne Organization',
 
     // Kaseya-specific label prefix for tenant-defined custom fields
@@ -627,4 +632,23 @@ return [
     'endpoint_central_extra_domain' => 'ME Domain',
     'endpoint_central_extra_remote_office' => 'ME Remote Office',
     'endpoint_central_vendor_group_remote_office' => 'Remote Office',
+
+    // HPE OneView
+    'hpe_oneview_base_url_help' => 'The address of your OneView appliance, for example <code>https://oneview.example.com</code>. The API version is negotiated automatically.',
+    'hpe_oneview_username_help' => 'An account on the appliance with at least read access to server hardware (the built-in "Read only" role is enough).',
+    'hpe_oneview_login_domain_label' => 'Login Domain',
+    'hpe_oneview_login_domain_help' => 'Optional. The authentication directory name when the account is not local, for example your Active Directory domain. Leave empty for local accounts.',
+    'hpe_oneview_extra_uuid' => 'OneView UUID',
+    'hpe_oneview_extra_part_number' => 'OneView Part Number',
+    'hpe_oneview_extra_power_state' => 'OneView Power State',
+    'hpe_oneview_extra_state' => 'OneView State',
+    'hpe_oneview_extra_status' => 'OneView Health Status',
+    'hpe_oneview_extra_processor_type' => 'OneView Processor Type',
+    'hpe_oneview_extra_processor_count' => 'OneView Processor Count',
+    'hpe_oneview_extra_processor_core_count' => 'OneView Cores per Processor',
+    'hpe_oneview_extra_memory_gb' => 'OneView Memory (GB)',
+    'hpe_oneview_extra_ilo_model' => 'OneView iLO Model',
+    'hpe_oneview_extra_ilo_firmware' => 'OneView iLO Firmware',
+    'hpe_oneview_extra_rom_version' => 'OneView System ROM Version',
+    'hpe_oneview_extra_position' => 'OneView Enclosure Bay',
 ];
