@@ -28,6 +28,17 @@
                         <div class="separator">{{ strtoupper(trans('general.or')) }}</div>
                     @endif
 
+                    @if (!config('app.require_saml') && $snipeSettings->oidc_enabled && $snipeSettings->oidc_issuer && $snipeSettings->oidc_client_id)
+
+                        <br><br>
+                        <a href="{{ route('oidc.login') }}" class="btn btn-block btn-default btn-lg" id="oidc-login">
+                            <x-icon type="oidc" />
+                            {{ trans('auth/general.oidc_login', ['provider' => $snipeSettings->oidc_display_name ?: trans('admin/settings/general.oidc')]) }}
+                        </a>
+
+                        <div class="separator">{{ strtoupper(trans('general.or')) }}</div>
+                    @endif
+
 
                     <div class="box login-box">
                         <div class="box-header with-border">

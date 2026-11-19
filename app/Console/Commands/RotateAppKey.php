@@ -127,6 +127,16 @@ class RotateAppKey extends Command
                     $this->warn('Unable to decrypt old LDAP password; skipping');
                 }
             }
+
+            if ($setting->oidc_client_secret != '') {
+                try {
+                    $setting->oidc_client_secret = $newEncrypter->encrypt($oldEncrypter->decrypt($setting->oidc_client_secret));
+                    $setting->save();
+                    $this->warn('OIDC client secret has been re-encrypted.');
+                } catch (DecryptException $e) {
+                    $this->warn('Unable to decrypt old OIDC client secret; skipping');
+                }
+            }
         } else {
             $this->info('This operation has been canceled. No changes have been made.');
         }

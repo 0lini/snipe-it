@@ -5,6 +5,7 @@ use App\Http\Controllers\Account;
 use App\Http\Controllers\ActionlogController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BulkCategoriesController;
 use App\Http\Controllers\BulkCompaniesController;
@@ -413,12 +414,12 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'authorize:superuser
 
     Route::get('/settings/labels/create', [LabelsController::class, 'create'])
         ->name('settings.labels.create')
-        ->breadcrumbs(fn(Trail $trail) => $trail->parent('settings.labels.index')
+        ->breadcrumbs(fn (Trail $trail) => $trail->parent('settings.labels.index')
             ->push(ucfirst(trans('general.create')), route('settings.labels.create')));
     Route::get('/settings/labels/{label}/edit', [LabelsController::class, 'edit'])
         ->name('settings.labels.edit')
-        ->breadcrumbs(fn(Trail $trail) => $trail->parent('settings.labels.index')
-            ->push(ucfirst(trans('general.edit')), route('settings.labels.edit', request()->route('label'))));;
+        ->breadcrumbs(fn (Trail $trail) => $trail->parent('settings.labels.index')
+            ->push(ucfirst(trans('general.edit')), route('settings.labels.edit', request()->route('label'))));
     Route::post('/settings/labels', [LabelsController::class, 'store'])
         ->name('settings.labels.store');
     Route::put('/settings/labels/{label}', [LabelsController::class, 'update'])
@@ -496,6 +497,15 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'authorize:superuser
 
     Route::post('/saml', [SettingsController::class, 'postSamlSettings'])
         ->name('settings.saml.save');
+
+    // OpenID Connect
+    Route::get('oidc', [SettingsController::class, 'getOidcSettings'])
+        ->name('settings.oidc.index')
+        ->breadcrumbs(fn (Trail $trail) => $trail->parent('settings.index')
+            ->push(trans('admin/settings/general.oidc_title'), route('settings.oidc.index')));
+
+    Route::post('oidc', [SettingsController::class, 'postOidcSettings'])
+        ->name('settings.oidc.save');
 
     // Backups
     Route::group(['prefix' => 'backups', 'middleware' => 'auth'], function () {
@@ -1004,6 +1014,10 @@ Route::group(['middleware' => 'web'], function () {
         'password/email',
         [ForgotPasswordController::class, 'sendResetLinkEmail']
     )->name('password.email')->middleware('throttle:forgotten_password');
+
+    // OpenID Connect login
+    Route::get('login/oidc', [OidcController::class, 'redirect'])->name('oidc.login');
+    Route::get('oidc/callback', [OidcController::class, 'callback'])->name('oidc.callback');
 
     // Socialite Google login
     Route::get('google', 'App\Http\Controllers\GoogleAuthController@redirectToGoogle')->name('google.redirect');

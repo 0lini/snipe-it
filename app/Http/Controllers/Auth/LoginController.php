@@ -8,6 +8,7 @@ use App\Models\Ldap;
 use App\Models\SamlNonce;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Oidc;
 use App\Services\Saml;
 use Com\Tecnick\Barcode\Barcode;
 use Exception;
@@ -54,7 +55,7 @@ class LoginController extends Controller
      *
      * @return void
      */
-    public function __construct(Saml $saml)
+    public function __construct(Saml $saml, protected Oidc $oidc)
     {
         parent::__construct();
         $this->middleware('guest', ['except' => ['logout', 'postTwoFactorAuth', 'getTwoFactorAuth', 'getTwoFactorEnroll']]);
@@ -89,6 +90,10 @@ class LoginController extends Controller
 
             if ($this->saml->isEnabled() && Setting::getSettings()->saml_forcelogin == '1' && ! ($request->has('nosaml') || $request->session()->has('error'))) {
                 return redirect()->route('saml.login');
+            }
+
+            if ($this->oidc->isEnabled() && Setting::getSettings()->oidc_forcelogin == '1' && ! ($request->has('nooidc') || $request->session()->has('error'))) {
+                return redirect()->route('oidc.login');
             }
         }
 
@@ -558,6 +563,10 @@ class LoginController extends Controller
             return redirect()->away($sloRequestUrl);
         }
 
+        // Read the ID token before the session is regenerated; it is the
+        // id_token_hint for RP-initiated logout at the OIDC provider.
+        $oidcLogoutUrl = $this->oidc->getLogoutUrl($request->session()->pull(Oidc::ID_TOKEN_SESSION_KEY));
+
         $request->session()->regenerate(true);
         $request->session()->forget('2fa_authed');
 
@@ -569,6 +578,10 @@ class LoginController extends Controller
 
         if (! empty($sloRedirectUrl)) {
             return redirect()->away($sloRedirectUrl);
+        }
+
+        if (! empty($oidcLogoutUrl)) {
+            return redirect()->away($oidcLogoutUrl);
         }
 
         $customLogoutUrl = $settings->login_remote_user_custom_logout_url;

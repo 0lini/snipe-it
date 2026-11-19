@@ -5,6 +5,8 @@ return [
     'email_reset_password' => 'Email Password Reset',
     'reset_password' => 'Reset Password',
     'saml_login' => 'Login via SAML',
+    'oidc_login' => 'Login via :provider',
+    'oidc_login_failed' => 'OpenID Connect login failed, please try again.',
     'login' => 'Login',
     'login_prompt' => 'Please Login',
     'forgot_password' => 'I forgot my password',

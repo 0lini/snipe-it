@@ -238,6 +238,8 @@ class IconHelper
                 return 'fas fa-sitemap';
             case 'saml':
                 return 'fas fa-sign-in-alt';
+            case 'oidc':
+                return 'fa-brands fa-openid';
             case 'backups':
                 return 'fas fa-file-archive';
             case 'logins':

@@ -6,6 +6,7 @@ use App\Enums\ActionType;
 use App\Helpers\Helper;
 use App\Helpers\StorageHelper;
 use App\Http\Requests\ImageUploadRequest;
+use App\Http\Requests\SettingsOidcRequest;
 use App\Http\Requests\SettingsSamlRequest;
 use App\Http\Requests\StoreLabelSettings;
 use App\Http\Requests\StoreLdapSettings;
@@ -21,6 +22,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\MailTest;
 use App\Rules\CssColor;
+use App\Services\Oidc;
 use App\Traits\LocksLongRunningOperation;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -852,6 +854,57 @@ class SettingsController extends Controller
 
         if ($setting->save()) {
             return redirect()->route('settings.saml.index')
+                ->with('success', trans('admin/settings/message.update.success'));
+        }
+
+        return redirect()->back()->withInput()->withErrors($setting->getErrors());
+    }
+
+    /**
+     * Return the OpenID Connect settings form.
+     */
+    public function getOidcSettings(): View
+    {
+        $setting = Setting::getSettings();
+
+        return view('settings.oidc', compact('setting'));
+    }
+
+    /**
+     * Save OpenID Connect settings.
+     *
+     * The client secret is stored encrypted and only replaced when a new value
+     * is submitted, so the form never has to echo it back.
+     */
+    public function postOidcSettings(SettingsOidcRequest $request, Oidc $oidc): RedirectResponse
+    {
+        if (config('app.lock_passwords')) {
+            return redirect()->back()->with('error', trans('general.feature_disabled'));
+        }
+
+        $setting = Setting::getSettings();
+        $oidc->clearCache();
+
+        $setting->oidc_enabled = $request->input('oidc_enabled', '0');
+        $setting->oidc_display_name = $request->input('oidc_display_name');
+        $setting->oidc_issuer = $request->filled('oidc_issuer') ? rtrim($request->input('oidc_issuer'), '/') : null;
+        $setting->oidc_client_id = $request->input('oidc_client_id');
+        $setting->oidc_scopes = $request->input('oidc_scopes');
+        $setting->oidc_username_claim = $request->input('oidc_username_claim');
+        $setting->oidc_forcelogin = $request->input('oidc_forcelogin', '0');
+        $setting->oidc_slo = $request->input('oidc_slo', '0');
+        $setting->oidc_auto_create_users = $request->input('oidc_auto_create_users', '0');
+
+        if ($request->boolean('oidc_client_secret_clear')) {
+            $setting->oidc_client_secret = null;
+        } elseif ($request->filled('oidc_client_secret')) {
+            $setting->oidc_client_secret = Crypt::encrypt($request->input('oidc_client_secret'));
+        }
+
+        if ($setting->save()) {
+            $oidc->clearCache();
+
+            return redirect()->route('settings.oidc.index')
                 ->with('success', trans('admin/settings/message.update.success'));
         }
 
