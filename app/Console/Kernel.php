@@ -26,6 +26,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('auth:clear-resets')->everyFifteenMinutes();
         $schedule->command('saml:clear_expired_nonces')->weekly();
         
+        $schedule->command('snipeit:lookup-warranties')
+            ->dailyAt('04:00')
+            ->withoutOverlapping();
+
         $schedule->command('snipeit:pull-inventory')
             ->daily()
             ->withoutOverlapping();
